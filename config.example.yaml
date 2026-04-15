@@ -1,0 +1,85 @@
+general:
+  start_minimized: true
+  start_on_login: false
+  notification_sound: true
+  log_level: INFO
+
+ai:
+  provider: none          # claude | openai | none
+  api_key: ""
+  model: claude-haiku-4-5-20251001
+  threshold: 0.6
+  interests: >
+    Describe your interests here. The AI will use this to score
+    post relevance beyond simple keyword matching.
+
+global_keywords:
+  - example keyword
+  - another keyword
+
+negative_keywords:
+  - hiring
+  - job posting
+
+# Sources is a list — add as many as you want of any type.
+# Available types: reddit, kvr_audio, gearspace, stackoverflow, discord, rss_feed
+sources:
+  - name: "My Reddit"
+    type: reddit
+    enabled: true
+    interval: 120
+    keywords: []            # Empty = use global keywords
+    settings:
+      client_id: ""
+      client_secret: ""
+      user_agent: "SocialMonitor/1.0 (by u/your_username)"
+      subreddits:
+        - python
+        - learnpython
+
+  - name: "KVR Instruments"
+    type: kvr_audio
+    enabled: false
+    interval: 300
+    keywords: []
+    settings:
+      forum_ids: [1, 11]    # 1=Instruments, 11=Effects
+
+  - name: "GearSpace Music Computers"
+    type: gearspace
+    enabled: false
+    interval: 600
+    keywords: []
+    settings:
+      forum_urls:
+        - "https://gearspace.com/board/music-computers/"
+      session_cookie: ""
+
+  - name: "SO Audio Tags"
+    type: stackoverflow
+    enabled: false
+    interval: 300
+    keywords: []
+    settings:
+      api_key: ""
+      tags:
+        - audio-processing
+        - vst
+
+  - name: "My Discord"
+    type: discord
+    enabled: false
+    interval: 60
+    keywords: []
+    settings:
+      bot_token: ""
+      channel_ids: []
+
+  - name: "Example Blog"
+    type: rss_feed
+    enabled: false
+    interval: 600
+    keywords: []
+    settings:
+      feed_urls:
+        - "https://example.com/feed.xml"

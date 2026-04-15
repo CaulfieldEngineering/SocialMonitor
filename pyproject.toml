@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "social-monitor"
+version = "0.1.0"
+description = "Desktop app that monitors social media and forums for relevant posts with AI scoring"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "PyQt6>=6.6",
+    "qasync>=0.27",
+    "aiohttp>=3.9",
+    "aiosqlite>=0.17",
+    "asyncpraw>=7.7",
+    "feedparser>=6.0",
+    "beautifulsoup4>=4.12",
+    "discord.py>=2.3",
+    "winotify>=1.1",
+    "anthropic>=0.40",
+    "openai>=1.10",
+    "pyyaml>=6.0",
+    "pydantic>=2.5",
+    "Pillow>=10.0",
+]
+
+[project.optional-dependencies]
+scraping = ["playwright>=1.40"]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+social-monitor = "social_monitor.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/social_monitor"]
