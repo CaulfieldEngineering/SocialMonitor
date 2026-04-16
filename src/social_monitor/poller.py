@@ -96,9 +96,9 @@ class Poller:
             logger.warning("No sources enabled or initialized — nothing to poll")
             return
 
-        for src_cfg, source in self._active_sources:
+        for i, (src_cfg, source) in enumerate(self._active_sources):
             task = asyncio.create_task(
-                self._poll_source(src_cfg, source),
+                self._poll_source(src_cfg, source, index=i),
                 name=f"poll_{src_cfg.name}",
             )
             self._tasks.append(task)
@@ -127,10 +127,12 @@ class Poller:
             self.signals.source_status.emit("Checking all sources...", 0)
         logger.info("Check Now triggered — waking all sources")
 
-    async def _poll_source(self, src_cfg: SourceInstanceConfig, source: BaseSource) -> None:
+    async def _poll_source(self, src_cfg: SourceInstanceConfig, source: BaseSource, index: int = 0) -> None:
         """Poll a single source instance on its configured interval."""
+        import random
         interval = src_cfg.interval
-        await asyncio.sleep(2)  # Stagger startup
+        # Stagger startup so sources don't all hit at once
+        await asyncio.sleep(2 + index * 3 + random.uniform(0, 2))
 
         while not self._stopped:
             if not self._paused:

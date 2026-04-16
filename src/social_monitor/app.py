@@ -220,15 +220,8 @@ def run_app() -> int:
         QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
             width: 0;
         }
-        QWidget {
+        QMainWindow, QDialog, QTabWidget::pane, QStackedWidget {
             background: white;
-        }
-        QMainWindow {
-            background: white;
-        }
-        QTabWidget::pane {
-            background: white;
-            border: 1px solid #ddd;
         }
         QGroupBox {
             background: white;

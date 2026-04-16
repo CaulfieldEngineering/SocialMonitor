@@ -193,6 +193,13 @@ class SubredditSource(BaseSource):
         if len(self._last_seen_ids[sub_name]) > 500:
             self._last_seen_ids[sub_name] = set(list(self._last_seen_ids[sub_name])[-200:])
 
+    def validate_config(self, config: dict) -> list[str]:
+        settings = config.get("settings", {})
+        # Accept either "subreddit" (new) or "subreddits" (legacy)
+        if not settings.get("subreddit") and not settings.get("subreddits"):
+            return ["Subreddit: at least one subreddit name is required"]
+        return []
+
     async def teardown(self) -> None:
         if self._reddit:
             await self._reddit.close()
