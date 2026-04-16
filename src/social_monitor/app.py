@@ -220,6 +220,40 @@ def run_app() -> int:
         QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
             width: 0;
         }
+        QWidget {
+            background: white;
+        }
+        QMainWindow {
+            background: white;
+        }
+        QTabWidget::pane {
+            background: white;
+            border: 1px solid #ddd;
+        }
+        QGroupBox {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 8px;
+            padding-top: 16px;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            padding: 0 6px;
+        }
+        QListWidget {
+            background: white;
+            border: 1px solid #ddd;
+        }
+        QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 4px;
+        }
+        QStatusBar {
+            background: #f8f8f8;
+        }
     """)
 
     app = SocialMonitorApp(config)

@@ -634,12 +634,6 @@ class SettingsTab(QWidget):
         self._nav.setCurrentRow(0)
         outer.addLayout(body)
 
-        # Save button at bottom
-        save_btn = QPushButton("Save Settings")
-        save_btn.setStyleSheet("font-weight:bold; padding:8px;")
-        save_btn.clicked.connect(self.save)
-        outer.addWidget(save_btn)
-
         # Status message label
         self._status = QLabel("")
         self._status.setStyleSheet("color: green; font-weight: bold; padding: 4px;")
@@ -673,6 +667,8 @@ class SettingsTab(QWidget):
         layout.addWidget(clear_db_btn)
 
         layout.addStretch()
+        save_btn = QPushButton("Save"); save_btn.setStyleSheet("font-weight:bold; padding:6px;")
+        save_btn.clicked.connect(self.save); layout.addWidget(save_btn)
         self._pages.addWidget(page)
 
     def _clear_database(self) -> None:
@@ -765,6 +761,7 @@ class SettingsTab(QWidget):
             while self._source_stack.count(): self._source_stack.removeWidget(self._source_stack.widget(0))
         self._add_source_ui(cfg)
         self._source_list.setCurrentRow(self._source_list.count()-1)
+        self.save()
 
     def _bulk_add_sources(self) -> None:
         """Add multiple subreddit sources at once — one entry per name."""
@@ -802,7 +799,8 @@ class SettingsTab(QWidget):
             self._add_source_ui(cfg)
 
         self._source_list.setCurrentRow(self._source_list.count() - 1)
-        self._status_msg(f"Added {len(names)} subreddit(s). Click Save to apply.")
+        self.save()
+        self._status_msg(f"Added {len(names)} subreddit(s) and saved.")
 
     def _remove_source(self) -> None:
         r = self._source_list.currentRow()
@@ -812,6 +810,8 @@ class SettingsTab(QWidget):
         self._source_list.takeItem(r)
         f = self._source_forms.pop(r)
         self._source_stack.removeWidget(f); f.deleteLater()
+        self.save()
+        self._status_msg(f"Removed '{name}' and saved.")
 
     # -- AI Scoring --
     def _build_ai_page(self) -> None:
@@ -911,6 +911,8 @@ class SettingsTab(QWidget):
         reset_btn.clicked.connect(lambda: self._ai_prompt.setPlainText(DEFAULT_AI_PROMPT))
         layout.addWidget(reset_btn)
 
+        save_btn = QPushButton("Save"); save_btn.setStyleSheet("font-weight:bold; padding:6px;")
+        save_btn.clicked.connect(self.save); layout.addWidget(save_btn)
         layout.addStretch()
         scroll.setWidget(inner)
         page_layout = QVBoxLayout(page); page_layout.setContentsMargins(0,0,0,0)
@@ -931,6 +933,8 @@ class SettingsTab(QWidget):
         self._nk = KeywordListEditor(); self._nk.set_keywords(self.config.negative_keywords)
         layout.addWidget(self._nk)
         layout.addStretch()
+        save_btn = QPushButton("Save"); save_btn.setStyleSheet("font-weight:bold; padding:6px;")
+        save_btn.clicked.connect(self.save); layout.addWidget(save_btn)
         self._pages.addWidget(page)
 
     # -- Save --
