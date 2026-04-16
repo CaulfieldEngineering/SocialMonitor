@@ -126,14 +126,6 @@ class Poller:
         if self.signals:
             self.signals.source_status.emit("Checking all sources...", 0)
         logger.info("Check Now triggered — waking all sources")
-        # Clear after a short delay so all source loops see the event
-        async def _clear_later():
-            await asyncio.sleep(1)
-            self._check_now_event.clear()
-        try:
-            asyncio.ensure_future(_clear_later())
-        except RuntimeError:
-            pass
 
     async def _poll_source(self, src_cfg: SourceInstanceConfig, source: BaseSource) -> None:
         """Poll a single source instance on its configured interval."""
@@ -165,8 +157,10 @@ class Poller:
                         self.signals.source_status.emit(f"{src_cfg.name}: error", 0)
 
             # Sleep until interval expires OR check_now wakes us
+            # Always clear the event after waking so it doesn't spin
             try:
                 await asyncio.wait_for(self._check_now_event.wait(), timeout=interval)
+                self._check_now_event.clear()
             except asyncio.TimeoutError:
                 pass
 
@@ -219,8 +213,10 @@ class Poller:
 
             for sp in scored:
                 if self._matches_negative(sp.post):
-                    await self.db.mark_seen(sp.post)
-                    # Still emit to feed so user sees filtered posts
+                    try:
+                        await self.db.mark_seen(sp.post)
+                    except Exception:
+                        logger.exception("DB error marking post seen")
                     if self.signals:
                         from social_monitor.ui.signals import JsonScoredPost
                         self.signals.post_scored.emit(
@@ -228,7 +224,10 @@ class Poller:
                         )
                     continue
 
-                await self.db.save_scored(sp, notified=sp.score >= threshold)
+                try:
+                    await self.db.save_scored(sp, notified=sp.score >= threshold)
+                except Exception:
+                    logger.exception("DB error saving scored post")
 
                 # Build trigger info string
                 if scoring_method == "ai":
