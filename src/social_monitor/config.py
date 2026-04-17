@@ -25,6 +25,7 @@ class GeneralConfig(BaseModel):
     start_minimized: bool = True
     start_on_login: bool = False
     notification_sound: bool = True
+    poll_interval: int = 120  # seconds, applies to all sources
     log_level: str = "INFO"
 
 

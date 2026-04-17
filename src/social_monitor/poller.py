@@ -130,7 +130,7 @@ class Poller:
     async def _poll_source(self, src_cfg: SourceInstanceConfig, source: BaseSource, index: int = 0) -> None:
         """Poll a single source instance on its configured interval."""
         import random
-        interval = src_cfg.interval
+        interval = self.config.general.poll_interval
         # Stagger startup so sources don't all hit at once
         await asyncio.sleep(2 + index * 3 + random.uniform(0, 2))
 

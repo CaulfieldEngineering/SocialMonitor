@@ -294,11 +294,21 @@ def run_app() -> int:
             background: white;
             border: 1px solid #ddd;
         }
-        QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {
+        QLineEdit, QComboBox, QPlainTextEdit {
             background: white;
             border: 1px solid #ccc;
             border-radius: 3px;
             padding: 4px;
+        }
+        QSpinBox {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 4px;
+        }
+        QSpinBox::up-button, QSpinBox::down-button {
+            width: 16px;
+            border: none;
         }
         QStatusBar {
             background: #f8f8f8;

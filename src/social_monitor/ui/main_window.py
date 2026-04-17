@@ -197,9 +197,6 @@ class SourceConfigForm(QWidget):
         top = QFormLayout()
         self._name_edit = QLineEdit(src_cfg.name); top.addRow("Name:", self._name_edit)
         self._enabled = QCheckBox("Enabled"); self._enabled.setChecked(src_cfg.enabled); top.addRow(self._enabled)
-        self._interval = QSpinBox(); self._interval.setRange(10, 7200)
-        self._interval.setValue(src_cfg.interval); self._interval.setSuffix(" seconds")
-        top.addRow("Poll interval:", self._interval)
 
         # Source type dropdown
         from social_monitor.poller import _import_all_sources
@@ -259,7 +256,7 @@ class SourceConfigForm(QWidget):
             name=self._name_edit.text(),
             type=new_type,
             enabled=self._enabled.isChecked(),
-            interval=self._interval.value(),
+            interval=120,
         )
         self._rebuild_inner_form(new_type, stub)
 
@@ -323,7 +320,7 @@ class SourceConfigForm(QWidget):
         kw = self._inner_form.collect_keywords() if self._inner_form else []
         return SourceInstanceConfig(
             name=self._name_edit.text(), type=type_key, method=mk,
-            enabled=self._enabled.isChecked(), interval=self._interval.value(),
+            enabled=self._enabled.isChecked(), interval=120,
             keywords=kw, settings=s)
 
 
@@ -654,6 +651,16 @@ class SettingsTab(QWidget):
         form.addRow(self._login)
         self._snd = QCheckBox("Notification sound"); self._snd.setChecked(self.config.general.notification_sound)
         form.addRow(self._snd)
+
+        # Poll interval — use a simple line edit to avoid the broken QSpinBox arrows
+        poll_row = QHBoxLayout()
+        self._poll_interval = QLineEdit(str(self.config.general.poll_interval))
+        self._poll_interval.setMaximumWidth(80)
+        poll_row.addWidget(self._poll_interval)
+        poll_row.addWidget(QLabel("seconds (applies to all sources)"))
+        poll_row.addStretch()
+        form.addRow("Poll interval:", poll_row)
+
         self._ll = QComboBox(); self._ll.addItems(["DEBUG","INFO","WARNING","ERROR"])
         self._ll.setCurrentText(self.config.general.log_level); form.addRow("Log level:", self._ll)
         layout.addLayout(form)
@@ -957,6 +964,10 @@ class SettingsTab(QWidget):
         self.config.general.start_minimized = self._min.isChecked()
         self.config.general.start_on_login = self._login.isChecked()
         self.config.general.notification_sound = self._snd.isChecked()
+        try:
+            self.config.general.poll_interval = max(30, int(self._poll_interval.text()))
+        except ValueError:
+            pass
         self.config.general.log_level = self._ll.currentText()
         save_config(self.config)
         logger.info("Settings saved")
