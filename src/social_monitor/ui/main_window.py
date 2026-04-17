@@ -535,14 +535,48 @@ class PostDetailPanel(QWidget):
 
         layout.addWidget(body_frame, stretch=1)
 
-        # Open button
+        # Button row
+        btn_row = QHBoxLayout()
         self._open_btn = QPushButton("Open in Browser")
         self._open_btn.setStyleSheet("padding: 6px; font-weight: bold;")
         self._open_btn.clicked.connect(self._open_url); self._open_btn.setEnabled(False)
-        layout.addWidget(self._open_btn)
-        self._url = ""
+        btn_row.addWidget(self._open_btn)
 
-    def show_post(self, post: JsonScoredPost) -> None:
+        self._reply_btn = QPushButton("Generate AI Reply")
+        self._reply_btn.setStyleSheet("padding: 6px; font-weight: bold;")
+        self._reply_btn.clicked.connect(self._generate_reply); self._reply_btn.setEnabled(False)
+        btn_row.addWidget(self._reply_btn)
+        layout.addLayout(btn_row)
+
+        # Reply text area — editable, copyable
+        from PyQt6.QtWidgets import QFrame
+        self._reply_frame = QFrame()
+        self._reply_frame.setFrameShape(QFrame.Shape.StyledPanel)
+        self._reply_frame.setStyleSheet(
+            "QFrame { background: #f9fff9; border: 1px solid #4CAF50; border-radius: 4px; }"
+        )
+        reply_inner = QVBoxLayout(self._reply_frame)
+        reply_inner.setContentsMargins(8, 8, 8, 8)
+        reply_header = QLabel("Generated Reply (edit and copy)")
+        reply_header.setStyleSheet("font-weight: bold; color: #2e7d32; border: none; font-size: 11px;")
+        reply_inner.addWidget(reply_header)
+        self._reply_edit = QTextEdit()
+        self._reply_edit.setStyleSheet("border: none; font-size: 13px;")
+        self._reply_edit.setPlaceholderText("Click 'Generate AI Reply' to create a draft response...")
+        reply_inner.addWidget(self._reply_edit)
+
+        copy_btn = QPushButton("Copy to Clipboard")
+        copy_btn.clicked.connect(self._copy_reply)
+        reply_inner.addWidget(copy_btn)
+
+        self._reply_frame.setVisible(False)
+        layout.addWidget(self._reply_frame, stretch=1)
+
+        self._url = ""
+        self._current_post = None
+        self._app_ref = None  # Set by MainWindow
+
+    def _show_post_content(self, post: JsonScoredPost) -> None:
         self._title.setText(post.title)
 
         # Meta
@@ -589,8 +623,64 @@ class PostDetailPanel(QWidget):
 
         self._url = post.url; self._open_btn.setEnabled(bool(post.url))
 
+    def show_post(self, post: JsonScoredPost) -> None:
+        # Store for reply generation
+        self._current_post = post
+        self._reply_btn.setEnabled(True)
+        self._reply_frame.setVisible(False)
+        self._reply_edit.clear()
+        # Call the original show logic
+        self._show_post_content(post)
+
     def _open_url(self) -> None:
         if self._url: webbrowser.open(self._url)
+
+    def _generate_reply(self) -> None:
+        if not self._current_post or not self._app_ref:
+            return
+        if not self._app_ref._scorer:
+            self._reply_edit.setPlainText("AI is not configured. Go to Settings > AI Scoring to set up a provider.")
+            self._reply_frame.setVisible(True)
+            return
+
+        self._reply_btn.setEnabled(False)
+        self._reply_btn.setText("Generating...")
+        self._reply_frame.setVisible(True)
+        self._reply_edit.setPlainText("Generating reply...")
+
+        import asyncio
+        post = self._current_post
+
+        async def _do_reply():
+            return await self._app_ref._scorer.generate_reply(
+                title=post.title,
+                body=post.body,
+                author=post.author,
+                source=getattr(post, 'source_name', post.source),
+            )
+
+        def _on_done(future):
+            try:
+                reply = future.result()
+                self._reply_edit.setPlainText(reply)
+            except Exception as e:
+                self._reply_edit.setPlainText(f"Error: {e}")
+            self._reply_btn.setEnabled(True)
+            self._reply_btn.setText("Generate AI Reply")
+
+        loop = asyncio.get_event_loop()
+        task = asyncio.ensure_future(_do_reply(), loop=loop)
+        task.add_done_callback(_on_done)
+
+    def _copy_reply(self) -> None:
+        from PyQt6.QtWidgets import QApplication as QtApp
+        clipboard = QtApp.clipboard()
+        if clipboard:
+            clipboard.setText(self._reply_edit.toPlainText())
+            # Brief visual feedback
+            self._reply_btn.setText("Copied!")
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(1500, lambda: self._reply_btn.setText("Generate AI Reply"))
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -914,9 +1004,32 @@ class SettingsTab(QWidget):
         self._ai_prompt.setMinimumHeight(150)
         layout.addWidget(self._ai_prompt)
 
-        reset_btn = QPushButton("Reset to Default Prompt")
+        reset_btn = QPushButton("Reset to Default Scoring Prompt")
         reset_btn.clicked.connect(lambda: self._ai_prompt.setPlainText(DEFAULT_AI_PROMPT))
         layout.addWidget(reset_btn)
+
+        # Reply generation settings
+        layout.addWidget(QLabel(""))
+        layout.addWidget(QLabel("<b>Reply Generation</b>"))
+        layout.addWidget(QLabel(
+            "When you click 'Generate AI Reply' on a post, this prompt is used.\n"
+            "Uses {interests} placeholder. Leave empty for the default prompt."))
+
+        from social_monitor.config import DEFAULT_REPLY_PROMPT
+        self._reply_prompt = QPlainTextEdit(c.reply_prompt)
+        self._reply_prompt.setPlaceholderText("(Using default reply prompt — edit to customize your voice)")
+        self._reply_prompt.setMinimumHeight(120)
+        layout.addWidget(self._reply_prompt)
+
+        reset_reply_btn = QPushButton("Reset to Default Reply Prompt")
+        reset_reply_btn.clicked.connect(lambda: self._reply_prompt.setPlainText(DEFAULT_REPLY_PROMPT))
+        layout.addWidget(reset_reply_btn)
+
+        reply_model_form = QFormLayout()
+        self._reply_model = QLineEdit(c.reply_model)
+        self._reply_model.setPlaceholderText("(Leave empty to use scoring model)")
+        reply_model_form.addRow("Reply model (optional):", self._reply_model)
+        layout.addLayout(reply_model_form)
 
         save_btn = QPushButton("Save"); save_btn.setStyleSheet("font-weight:bold; padding:6px;")
         save_btn.clicked.connect(self.save); layout.addWidget(save_btn)
@@ -959,6 +1072,8 @@ class SettingsTab(QWidget):
         self.config.ai.prefer_questions = self._ai_prefer_q.isChecked()
         self.config.ai.prefer_unanswered = self._ai_prefer_unans.isChecked()
         self.config.ai.exclude_self_promo = self._ai_exclude_promo.isChecked()
+        self.config.ai.reply_prompt = self._reply_prompt.toPlainText()
+        self.config.ai.reply_model = self._reply_model.text()
         self.config.global_keywords = self._gk.get_keywords()
         self.config.negative_keywords = self._nk.get_keywords()
         self.config.general.start_minimized = self._min.isChecked()
@@ -1029,6 +1144,7 @@ class MainWindow(QMainWindow):
         self._feed.currentCellChanged.connect(self._on_row_changed)
         splitter.addWidget(self._feed)
         self._detail = PostDetailPanel()
+        self._detail._app_ref = app_controller
         splitter.addWidget(self._detail)
         splitter.setSizes([600, 400])
         splitter.setStretchFactor(0, 3)

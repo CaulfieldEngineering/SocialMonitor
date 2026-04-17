@@ -69,6 +69,29 @@ class AIConfig(BaseModel):
     prefer_questions: bool = True  # Boost posts that are questions
     prefer_unanswered: bool = True  # Boost posts with 0 answers
     exclude_self_promo: bool = False  # Penalize self-promotion posts
+    reply_prompt: str = ""  # Custom prompt for generating replies (empty = default)
+    reply_model: str = ""  # Model for replies (empty = use scoring model)
+
+
+DEFAULT_REPLY_PROMPT = """\
+You are writing a reply to a social media or forum post on behalf of the user.
+
+About the user:
+{interests}
+
+IMPORTANT RULES:
+- Write in a natural, conversational human voice
+- Do NOT use em dashes (—), semicolons in casual contexts, or overly formal phrasing
+- Do NOT start with "Great question!" or similar AI pleasantries
+- Do NOT use bullet points or numbered lists unless truly necessary
+- Keep it concise and helpful — match the tone of the platform
+- If the post asks a question, answer it directly with practical advice
+- Draw on the user's expertise described above
+- If you're unsure about specific facts, say so honestly rather than guessing
+- Write as a peer, not as an authority or assistant
+- Use contractions naturally (don't, won't, it's, etc.)
+- One to three short paragraphs max unless the question demands more detail
+"""
 
 
 class SourceInstanceConfig(BaseModel):

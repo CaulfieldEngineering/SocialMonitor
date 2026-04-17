@@ -185,31 +185,61 @@ class Scorer:
             short_err = error_msg[:150] if len(error_msg) > 150 else error_msg
             return [ScoredPost(post=p, score=0.5, explanation=f"AI error: {short_err}") for p in posts]
 
-    async def _call_claude(self, system: str, user_msg: str) -> str:
+    async def generate_reply(self, title: str, body: str, author: str, source: str) -> str:
+        """Generate a human-sounding reply to a post."""
+        from social_monitor.config import DEFAULT_REPLY_PROMPT
+
+        prompt_template = self.ai_config.reply_prompt.strip() or DEFAULT_REPLY_PROMPT
+        system = prompt_template.format(
+            interests=self.ai_config.interests or "Not specified",
+        )
+
+        user_msg = (
+            f"Write a reply to this {source} post:\n\n"
+            f"Title: {title}\n"
+            f"Author: {author}\n"
+            f"Post:\n{body}\n\n"
+            f"Write your reply below. Just the reply text, nothing else."
+        )
+
+        reply_model = self.ai_config.reply_model or self.model
+
+        try:
+            if self.provider == "claude":
+                return await self._call_claude(system, user_msg, model=reply_model)
+            elif self.provider == "openrouter":
+                return await self._call_openrouter(system, user_msg, model=reply_model)
+            else:
+                return await self._call_openai(system, user_msg, model=reply_model)
+        except Exception as e:
+            logger.exception("Reply generation failed")
+            return f"Error generating reply: {e}"
+
+    async def _call_claude(self, system: str, user_msg: str, model: str | None = None) -> str:
         from anthropic import AsyncAnthropic
         client = AsyncAnthropic(api_key=self.api_key)
         response = await client.messages.create(
-            model=self.model, max_tokens=2048, system=system,
+            model=model or self.model, max_tokens=2048, system=system,
             messages=[{"role": "user", "content": user_msg}],
         )
         return response.content[0].text
 
-    async def _call_openai(self, system: str, user_msg: str) -> str:
+    async def _call_openai(self, system: str, user_msg: str, model: str | None = None) -> str:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=self.api_key)
         response = await client.chat.completions.create(
-            model=self.model,
+            model=model or self.model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
-            max_tokens=2048, temperature=0.1,
+            max_tokens=2048, temperature=0.7,
         )
         return response.choices[0].message.content or ""
 
-    async def _call_openrouter(self, system: str, user_msg: str) -> str:
+    async def _call_openrouter(self, system: str, user_msg: str, model: str | None = None) -> str:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=self.api_key, base_url="https://openrouter.ai/api/v1")
         response = await client.chat.completions.create(
-            model=self.model,
+            model=model or self.model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
-            max_tokens=2048, temperature=0.1,
+            max_tokens=2048, temperature=0.7,
         )
         return response.choices[0].message.content or ""
