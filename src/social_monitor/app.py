@@ -178,6 +178,17 @@ class SocialMonitorApp:
             self._qt_app.quit()
 
 
+def _show_already_running():
+    """Show a message that another instance is running."""
+    try:
+        from PyQt6.QtWidgets import QApplication as QtApp, QMessageBox
+        temp = QtApp(sys.argv)
+        QMessageBox.information(None, "SocialMonitor",
+            "SocialMonitor is already running.\nCheck your system tray.")
+    except Exception:
+        pass
+
+
 def _ensure_single_instance():
     """Prevent multiple instances using a Windows mutex."""
     try:
@@ -194,14 +205,7 @@ def _ensure_single_instance():
 def run_app() -> int:
     """Application entry point."""
     if not _ensure_single_instance():
-        # Another instance is already running
-        try:
-            from PyQt6.QtWidgets import QApplication, QMessageBox
-            temp_app = QApplication(sys.argv)
-            QMessageBox.information(None, "SocialMonitor",
-                "SocialMonitor is already running.\nCheck your system tray.")
-        except Exception:
-            pass
+        _show_already_running()
         return 0
 
     config = load_config()
