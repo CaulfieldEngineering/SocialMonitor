@@ -53,8 +53,19 @@ class SocialMonitorApp:
         # Always show main window on launch
         self._main_window.show()
 
+        # Watch for "show window" signal from notification buttons / second instance
+        from PyQt6.QtCore import QTimer
+        self._show_timer = QTimer()
+        self._show_timer.timeout.connect(self._check_show_signal)
+        self._show_timer.start(500)  # Check every 500ms
+
     async def start_async(self) -> None:
         """Initialize async components (database, poller)."""
+        # Clean up stale signal file
+        try:
+            _SHOW_SIGNAL_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
         await self.db.connect()
 
         # Load recent history into the feed
@@ -138,6 +149,15 @@ class SocialMonitorApp:
 
     # -- Actions called by tray menu --
 
+    def _check_show_signal(self) -> None:
+        """Check if another instance or notification button wants us to show the window."""
+        if _SHOW_SIGNAL_FILE.exists():
+            try:
+                _SHOW_SIGNAL_FILE.unlink()
+            except Exception:
+                pass
+            self.show_log_viewer()
+
     def show_log_viewer(self) -> None:
         """Show/raise the main window."""
         if self._main_window:
@@ -178,13 +198,16 @@ class SocialMonitorApp:
             self._qt_app.quit()
 
 
-def _show_already_running():
-    """Show a message that another instance is running."""
+from social_monitor.config import DEFAULT_CONFIG_DIR
+
+_SHOW_SIGNAL_FILE = DEFAULT_CONFIG_DIR / ".show_window"
+
+
+def _signal_existing_instance():
+    """Tell the running instance to show its window by writing a signal file."""
     try:
-        from PyQt6.QtWidgets import QApplication as QtApp, QMessageBox
-        temp = QtApp(sys.argv)
-        QMessageBox.information(None, "SocialMonitor",
-            "SocialMonitor is already running.\nCheck your system tray.")
+        _SHOW_SIGNAL_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _SHOW_SIGNAL_FILE.write_text("show")
     except Exception:
         pass
 
@@ -199,13 +222,13 @@ def _ensure_single_instance():
             return False
         return True
     except Exception:
-        return True  # If mutex fails, allow running anyway
+        return True
 
 
 def run_app() -> int:
     """Application entry point."""
     if not _ensure_single_instance():
-        _show_already_running()
+        _signal_existing_instance()
         return 0
 
     config = load_config()
