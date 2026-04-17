@@ -169,12 +169,41 @@ class SocialMonitorApp:
 
     def quit(self) -> None:
         logger.info("Quit requested")
+        # Stop poller first to prevent tasks running during shutdown
+        if self._poller:
+            self._poller.stop()
+        if self._poller_task:
+            self._poller_task.cancel()
         if self._qt_app:
             self._qt_app.quit()
 
 
+def _ensure_single_instance():
+    """Prevent multiple instances using a Windows mutex."""
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        mutex = kernel32.CreateMutexW(None, False, "SocialMonitor_SingleInstance_Mutex")
+        if kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+            return False
+        return True
+    except Exception:
+        return True  # If mutex fails, allow running anyway
+
+
 def run_app() -> int:
     """Application entry point."""
+    if not _ensure_single_instance():
+        # Another instance is already running
+        try:
+            from PyQt6.QtWidgets import QApplication, QMessageBox
+            temp_app = QApplication(sys.argv)
+            QMessageBox.information(None, "SocialMonitor",
+                "SocialMonitor is already running.\nCheck your system tray.")
+        except Exception:
+            pass
+        return 0
+
     config = load_config()
     logging.basicConfig(
         level=getattr(logging, config.general.log_level, logging.INFO),
@@ -265,10 +294,19 @@ def run_app() -> int:
             stop_event = asyncio.Event()
             qt_app.aboutToQuit.connect(stop_event.set)
             await stop_event.wait()
-            await app.stop_async()
+            try:
+                await app.stop_async()
+            except Exception:
+                logger.debug("Shutdown cleanup interrupted (normal on exit)")
 
         with loop:
-            loop.run_until_complete(_main())
+            try:
+                loop.run_until_complete(_main())
+            except RuntimeError as e:
+                if "Event loop stopped" in str(e):
+                    logger.debug("Event loop stopped during shutdown (normal)")
+                else:
+                    raise
     except ImportError:
         logger.warning("qasync not installed — running Qt loop only")
         return qt_app.exec()
