@@ -259,10 +259,16 @@ def run_app() -> int:
         asyncio.set_event_loop(loop)
         app._loop = loop
 
+        async def _main():
+            await app.start_async()
+            # Keep running until the Qt app quits
+            stop_event = asyncio.Event()
+            qt_app.aboutToQuit.connect(stop_event.set)
+            await stop_event.wait()
+            await app.stop_async()
+
         with loop:
-            loop.run_until_complete(app.start_async())
-            loop.run_forever()
-            loop.run_until_complete(app.stop_async())
+            loop.run_until_complete(_main())
     except ImportError:
         logger.warning("qasync not installed — running Qt loop only")
         return qt_app.exec()
